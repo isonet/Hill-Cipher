@@ -1,3 +1,4 @@
+# coding=utf-8
 import numpy
 import numpy as np
 import utils
@@ -7,91 +8,51 @@ __author__ = 'pbiester'
 # http://asecuritysite.com/Coding/hill
 
 
-def num2str(arr, dim):
-    message = ""
-    arr = numpy.array(arr)
-    for i in range(0, len(arr)):
-        for j in range(0, dim):
-            char = chr(int(arr[i][j]) + 65)
-            if char == '[':
-                message += ' '
-            else:
-                message += char
-    return message
 
 
-def str2num(message):
-    message = str(message).upper()
-    arr = []
-    for e in message:
-        if e == ' ':
-            arr.append(ord("[") - 65)
-        else:
-            arr.append(ord(e) - 65)
-    return arr
-
-
-def arr2matrix(arr, dim):
-    arrnew = numpy.zeros(shape=(len(arr)/2, dim))
-
-    for i in range(0, len(arr) / 2):
-        for j in range(0, dim):
-            arrnew[i][j] = arr[i*dim + j]
-    return arrnew
-
-
-def crypt(m, k):
-    message = numpy.mat(m)
-    key = numpy.mat(k)
-    #a_inv = linalg.inv(message[0])
-    produit = message * key
-    produit %= 27
-    return produit
-
-#https://code.google.com/p/pysecret/source/browse/hill.py
-def encrypt(message, matrix, encryption=True):
-    """
-    Hill encryption (decryption).
-    """
+def encryptText(message, key):
+    # Nos messages sont seulement en majuscule
     message = message.upper()
-    if not utils.invertible(matrix):
+
+    # Verifier si la matrice clé est inversible
+    if not utils.invertible(key):
+        # TODO utiliser un throw exception
         return "La matrice n'est pas inversible"
+
+    # Si la longueur du message n'est pas paire on ajoute un 'X'
     if len(message) % 2 != 0:
         message += 'X'
-    couple = [list(message[i*2:(i*2)+2]) for i in range(0, len(message)/2)]
-    result = [i[:] for i in couple]
-    if not encryption:
-        # To decrypt, just need to inverse the matrix.
-        matrix = utils.inverse_matrix(matrix)
-    for i, c in enumerate(couple):
-        if c[0].isalpha() and c[1].isalpha():
-            result[i][0] = chr(((ord(c[0])-65) * matrix[0][0] + \
-                                    (ord(c[1])-65) * matrix[0][1]) % 26 + 65)
-            result[i][1] = chr(((ord(c[0])-65) * matrix[1][0] + \
-                                    (ord(c[1])-65) * matrix[1][1]) % 26 + 65)
-    return "".join(["".join(i) for i in result])
 
-def encryptImage(message, matrix, encryption=True):
-    """
-    Hill encryption (decryption).
-    """
-    message = message.upper()
-    if not utils.invertible(matrix):
-        return "La matrice n'est pas inversible"
-    if len(message) % 2 != 0:
-        message += 'X'
-    couple = [list(message[i*2:(i*2)+2]) for i in range(0, len(message)/2)]
-    result = [i[:] for i in couple]
-    if not encryption:
-        # To decrypt, just need to inverse the matrix.
-        matrix = utils.inverse_matrix(matrix)
+    # Creer une liste de couples
+    couple = []
+    for i in range(0, len(message)/2):
+        couple.append(list(message[i*2:(i*2)+2]))
+
+    # Initialiser la liste de sortie
+    result = []
+    for i in couple:
+        result.append(i[:])
+
+    # Parcours de chaque couple (enumerate retourne l'élément et un compteur i)
     for i, c in enumerate(couple):
-        if c[0].isalpha() and c[1].isalpha():
-            result[i][0] = chr(((ord(c[0])) * matrix[0][0] + \
-                                    (ord(c[1])) * matrix[0][1]) % 256)
-            result[i][1] = chr(((ord(c[0])) * matrix[1][0] + \
-                                    (ord(c[1])) * matrix[1][1]) % 256)
-    return "".join(["".join(i) for i in result])
+        crypted = (ord(c[0])-65) * key[0][0] + (ord(c[1])-65) * key[0][1]
+        crypted_mod = crypted % 26 + 65
+        result[i][0] = chr(crypted_mod)
+
+        crypted = (ord(c[0])-65) * key[1][0] + (ord(c[1])-65) * key[1][1]
+        crypted_mod = crypted % 26 + 65
+        result[i][1] = chr(crypted_mod)
+
+    # Creer n string de retour
+    return_string = ""
+    for e in result:
+        return_string += e[0] + e[1]
+
+    return return_string
+
+def decryptText(message, key):
+    # Pour decrypter il suffit d'inverser la matrice clé
+    return encryptText(message, utils.inverse_matrix(key))
 
 def main():
 
@@ -99,16 +60,14 @@ def main():
 
     key = [[11, 3], [8, 7]]
 
-
-    crypted = encrypt("atesta", key)
+    crypted = encryptText("atesta", key)
     print("\nChiffree : " )
     print crypted
 
-    r = encrypt(crypted, key, False)
+    r = decryptText(crypted, key)
     print("\nDechiffree : " )
     print r
 
-    print encrypt(encrypt("Vivement les vacances !", [[11, 3], [8, 7]]), [[11, 3], [8, 7]], False)
 
 
     from PIL import Image
