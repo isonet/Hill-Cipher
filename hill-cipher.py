@@ -2,6 +2,7 @@
 import numpy
 import numpy as np
 import utils
+from PIL import Image
 
 __author__ = 'pbiester'
 
@@ -54,10 +55,9 @@ def decrypt_text(message, key):
     # Pour decrypter il suffit d'inverser la matrice clé
     return encrypt_text(message, utils.inverse_matrix(key))
 
-def encrypt_image(filename, key):
+def encrypt_image(input_filename, output_filename, key):
 
-    from PIL import Image
-    i = Image.open(filename)
+    i = Image.open(input_filename)
 
     # Verifier le type de l'image
     if i.mode != 'L':
@@ -70,9 +70,7 @@ def encrypt_image(filename, key):
     pixels = []
     for x in range(width):
         for y in range(height):
-            pixels = pixels_l[x, y]
-
-    print pixels
+            pixels.append(pixels_l[y, x])
 
     # Verifier si la matrice clé est inversible
     if not utils.invertible(key):
@@ -80,13 +78,13 @@ def encrypt_image(filename, key):
         return "La matrice n'est pas inversible"
 
     # Si la longueur du message n'est pas paire on ajoute un 'X'
-    if len(message) % 2 != 0:
-        message += 'X'
+    if len(pixels) % 2 != 0:
+        pixels.append(0)
 
     # Creer une liste de couples
     couple = []
-    for i in range(0, len(message)/2):
-        couple.append(list(message[i*2:(i*2)+2]))
+    for i in range(0, len(pixels)/2):
+        couple.append(list(pixels[i*2:(i*2)+2]))
 
     # Initialiser la liste de sortie
     result = []
@@ -95,103 +93,102 @@ def encrypt_image(filename, key):
 
     # Parcours de chaque couple (enumerate retourne l'élément et un compteur i)
     for i, c in enumerate(couple):
-        crypted = (ord(c[0])-65) * key[0][0] + (ord(c[1])-65) * key[0][1]
-        crypted_mod = crypted % 26 + 65
-        result[i][0] = chr(crypted_mod)
+        crypted = c[0] * key[0][0] + c[1] * key[0][1]
+        crypted_mod = crypted % 256
+        result[i][0] = crypted_mod
 
-        crypted = (ord(c[0])-65) * key[1][0] + (ord(c[1])-65) * key[1][1]
-        crypted_mod = crypted % 26 + 65
-        result[i][1] = chr(crypted_mod)
+        crypted = c[0] * key[1][0] + c[1] * key[1][1]
+        crypted_mod = crypted % 256
+        result[i][1] = crypted_mod
 
-    # Creer n string de retour
-    return_string = ""
+    result_1d = []
     for e in result:
-        return_string += e[0] + e[1]
+        result_1d.append(e[0])
+        result_1d.append(e[1])
 
-    return return_string
+    im = Image.new('L', (height, width))
+    im.putdata(result_1d)
+    im.save(output_filename)
+
+def decrypt_image(input_filename, output_filename, key):
+
+    i = Image.open(input_filename)
+
+    # Verifier le type de l'image
+    if i.mode != 'L':
+        print "Seulement des images du type echelle de gris sont supportés"
+
+    # Retourne les pixels mais c'est pas une liste
+    pixels_l = i.load()
+    width, height = i.size
+
+    pixels = []
+    for x in range(width):
+        for y in range(height):
+            pixels.append(pixels_l[y, x])
+
+    #key = utils.inverse_matrix(key)
+    #print utils.inverse_matrix(key)
+    #key = numpy.linalg.inv(key)
+    key = [[197, 80], [47, 77]]
+
+    # Verifier si la matrice clé est inversible
+    #if not utils.invertible(key):
+    #    # TODO utiliser un throw exception
+    #    return "La matrice n'est pas inversible"
+
+    # Si la longueur du message n'est pas paire on ajoute un 'X'
+    if len(pixels) % 2 != 0:
+        pixels.append(0)
+
+    # Creer une liste de couples
+    couple = []
+    for i in range(0, len(pixels)/2):
+        couple.append(list(pixels[i*2:(i*2)+2]))
+
+    # Initialiser la liste de sortie
+    result = []
+    for i in couple:
+        result.append(i[:])
+
+    # Parcours de chaque couple (enumerate retourne l'élément et un compteur i)
+    for i, c in enumerate(couple):
+        crypted = c[0] * key[0][0] + c[1] * key[0][1]
+        crypted_mod = crypted % 256
+        result[i][0] = crypted_mod
+
+        crypted = c[0] * key[1][0] + c[1] * key[1][1]
+        crypted_mod = crypted % 256
+        result[i][1] = crypted_mod
+
+    result_1d = []
+    for e in result:
+        result_1d.append(int(e[0]))
+        result_1d.append(int(e[1]))
+
+    im = Image.new('L', (height, width))
+    im.putdata(result_1d)
+    im.save(output_filename)
 
 def main():
 
+    # LiCo. La matrice doit être inversible modulo 256/26
+    key26 = [[11, 3], [8, 7]]
+    key256 = [[253, 176], [65, 245]]
+    key256_inverse = [[197, 80], [47, 77]]
 
-
-    key = [[11, 3], [8, 7]]
-
-    crypted = encryptText("atesta", key)
+    crypted = encrypt_text("atesta", key26)
     print("\nChiffree : " )
     print crypted
 
-    r = decryptText(crypted, key)
+    r = decrypt_text(crypted, key26)
     print("\nDechiffree : " )
     print r
 
+    encrypt_image("data/original.png", "data/crypted.png", key256)
 
+    decrypt_image("data/crypted.png", "data/clear.png", key256)
 
-    from PIL import Image
-    i = Image.open("image2.png")
-    print i.mode
-
-    pixels = i.load() # this is not a list, nor is it list()'able
-    width, height = i.size
-
-    pixelString = ""
-    for x in range(width):
-        for y in range(height):
-            cpixel = pixels[x, y]
-            #bw_value = int(round(sum(cpixel) / float(len(cpixel))))
-            #print cpixel
-            #print (cpixel)
-            pixelString += (chr(cpixel))
-
-    #print pixelString
-    cr = encryptImage(pixelString, key)
-    #print cr
-    dcr = encryptImage(cr, key, False)
-
-    strNum = ""
-    for i in range(0, 256):
-        print i
-        strNum += chr(i)
-    print strNum
-    encStr = encrypt(strNum, [[11, 3], [8, 7]])
-    print encStr
-    decStr=""
-
-    decStr += str(ord(encrypt(encStr[i], [[11, 3], [8, 7]], False)))
-    print decStr
-    if(i != ord(dec[0])):
-        print "errorTEST"
-
-    count=0
-    cT = 0
-    for c, d in zip(cr, dcr):
-        cT += 1
-        if(c != d):
-            count += 1
-            print "error"
-    print str(count)
-    print str(cT)
-    #print dcr
-    lstImage = numpy.zeros((width, height))
-    count = 0
-    c2 = 0
-    for e in dcr:
-        lstImage[c2] = ord(e)
-        if(count > width):
-            c2 += 1
-            count = 0
-        count += 1
-        #lstImage.append(ord(e))
-
-    print lstImage.shape
-    #arrImage = numpy.asarray(lstImage)
-    #arrImage = np.reshape(arrImage, (width, -1))
-    #print arrImage
-
-    img = Image.fromarray(lstImage, 'L')
-    img.save('my.png')
-
-    a = chr(255)
-    print("\n\n" + str(a) + " : " + str(ord(a)))
 
 
 if __name__ == '__main__':
