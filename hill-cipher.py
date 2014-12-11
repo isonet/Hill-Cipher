@@ -10,7 +10,7 @@ __author__ = 'pbiester'
 
 
 
-def encryptText(message, key):
+def encrypt_text(message, key):
     # Nos messages sont seulement en majuscule
     message = message.upper()
 
@@ -50,9 +50,65 @@ def encryptText(message, key):
 
     return return_string
 
-def decryptText(message, key):
+def decrypt_text(message, key):
     # Pour decrypter il suffit d'inverser la matrice clé
-    return encryptText(message, utils.inverse_matrix(key))
+    return encrypt_text(message, utils.inverse_matrix(key))
+
+def encrypt_image(filename, key):
+
+    from PIL import Image
+    i = Image.open(filename)
+
+    # Verifier le type de l'image
+    if i.mode != 'L':
+        print "Seulement des images du type echelle de gris sont supportés"
+
+    # Retourne les pixels mais c'est pas une liste
+    pixels_l = i.load()
+    width, height = i.size
+
+    pixels = []
+    for x in range(width):
+        for y in range(height):
+            pixels = pixels_l[x, y]
+
+    print pixels
+
+    # Verifier si la matrice clé est inversible
+    if not utils.invertible(key):
+        # TODO utiliser un throw exception
+        return "La matrice n'est pas inversible"
+
+    # Si la longueur du message n'est pas paire on ajoute un 'X'
+    if len(message) % 2 != 0:
+        message += 'X'
+
+    # Creer une liste de couples
+    couple = []
+    for i in range(0, len(message)/2):
+        couple.append(list(message[i*2:(i*2)+2]))
+
+    # Initialiser la liste de sortie
+    result = []
+    for i in couple:
+        result.append(i[:])
+
+    # Parcours de chaque couple (enumerate retourne l'élément et un compteur i)
+    for i, c in enumerate(couple):
+        crypted = (ord(c[0])-65) * key[0][0] + (ord(c[1])-65) * key[0][1]
+        crypted_mod = crypted % 26 + 65
+        result[i][0] = chr(crypted_mod)
+
+        crypted = (ord(c[0])-65) * key[1][0] + (ord(c[1])-65) * key[1][1]
+        crypted_mod = crypted % 26 + 65
+        result[i][1] = chr(crypted_mod)
+
+    # Creer n string de retour
+    return_string = ""
+    for e in result:
+        return_string += e[0] + e[1]
+
+    return return_string
 
 def main():
 
