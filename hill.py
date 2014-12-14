@@ -110,26 +110,91 @@ def decrypt_image(input_filename, output_filename, key):
     encrypt_image(input_filename, output_filename, tools.modMatInv(key, 256))
 
 
-#def get_key_from_text(cleartext, cryptedtext):
-#    AX = Y
+def get_key_from_text(cleartext, cryptedtext):
+    # Y: crypted text, X: clear text, A: Key
+    #    AX = Y
+    #   A = Y.X^-1
+    cleartext = cleartext.upper()
+    cryptedtext = cryptedtext.upper()
+
+    clear_array = []
+    for e in cleartext:
+        clear_array.append(ord(e)-65)
+
+    crypted_array = []
+    for e in cryptedtext:
+        crypted_array.append(ord(e)-65)
+
+    print crypted_array
+
+    matrix_y = [[crypted_array[0], crypted_array[1]], [crypted_array[2], crypted_array[3]]]
+
+    found = False
+    count = 0
+    while not found:
+        print "\n\ntry : " + str((count % 4) + 1)
+        matrix_x = [[clear_array[count + 0], clear_array[count + 1]], [clear_array[count + 2], clear_array[count + 3]]]
+
+        print "matrix x"
+        print matrix_x
+        print "matrix y"
+        print matrix_y
+
+        import numpy
+        try:
+            x_inverse = tools.modMatInv(matrix_x, 27)
+            print "x inverse"
+            print x_inverse
+            y_dot_xinv = numpy.dot(matrix_y, x_inverse)
+            print "y_dot_xinv = "
+            print y_dot_xinv
+
+            print "K = "
+            print numpy.mod(y_dot_xinv, 27)
+            found = True
+        except ValueError:
+            count += 4
+            print "     valueError"
+
+
+def attack_hill_bruteforce(chiffree, clair):
+    for a in range(0, 27):
+        for b in range(0, 27):
+            for c in range(0, 27):
+                for d in range(0, 27):
+                    key = [[a, b], [c, d]]
+                    try:
+                        decrypted = decrypt_text(chiffree, key)
+                        if decrypted == clair:
+                            return key
+                    except ValueError:
+                        pass
+
 
 def main():
 
-    # LiCo. La matrice doit être inversible modulo 256/26
-    key26 = [[11, 3], [8, 7]]
+    # LiCo. La matrice doit être inversible modulo 256/27
+    key27 = [[11, 3], [8, 7]]
     key256 = [[253, 176], [65, 245]]
 
-    crypted = encrypt_text("The quick brown fox jumps over the lazy dog", key26)
+    crypted = encrypt_text("The quick brown fox jumps over the lazy dog", key27)
     print ("\nChiffree : ")
     print crypted
 
-    r = decrypt_text(crypted, key26)
+    r = decrypt_text(crypted, key27)
     print ("\nDechiffree : " )
     print r
 
     encrypt_image("data/original.png", "data/crypted.png", key256)
 
     decrypt_image("data/crypted.png", "data/clear.png", key256)
+
+    print encrypt_text("thisisatestforattackinghillcipher", key27)
+
+    get_key_from_text("thisisatestforattackinghillcipher", "OMHBHBDZRXIZQPDZURZFTUGQNGTVZHIDWV")
+
+    k = attack_hill_bruteforce(encrypt_text("ATESTA", key27), "ATESTA")
+    print "Cle de chiffrement trouvee : " + str(k)
 
 
 if __name__ == '__main__':
