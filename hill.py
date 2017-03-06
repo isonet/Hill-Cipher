@@ -104,10 +104,63 @@ def encrypt_image(input_filename, output_filename, key):
     im.putdata(result_1d)
     im.save(output_filename)
 
+def encrypt_image_return(input_filename, key):
+
+    i = Image.open(input_filename)
+
+    # Verifier le type de l'image
+    if i.mode != 'L':
+        print "Seulement des images du type echelle de gris sont supportés"
+
+    # Retourne les pixels mais c'est pas une liste
+    pixels_l = i.load()
+    width, height = i.size
+
+    pixels = []
+    for x in range(width):
+        for y in range(height):
+            pixels.append(pixels_l[y, x])
+
+    # Si la longueur du message n'est pas paire on ajoute un 'X'
+    if len(pixels) % 2 != 0:
+        pixels.append(0)
+
+    # Creer une liste de couples
+    couple = []
+    for i in range(0, len(pixels)/2):
+        couple.append(list(pixels[i*2:(i*2)+2]))
+
+    # Initialiser la liste de sortie
+    result = []
+    for i in couple:
+        result.append(i[:])
+
+    # Parcours de chaque couple (enumerate retourne l'élément et un compteur i)
+    for i, c in enumerate(couple):
+        crypted = c[0] * key[0][0] + c[1] * key[0][1]
+        crypted_mod = crypted % 256
+        result[i][0] = crypted_mod
+
+        crypted = c[0] * key[1][0] + c[1] * key[1][1]
+        crypted_mod = crypted % 256
+        result[i][1] = crypted_mod
+
+    result_1d = []
+    for e in result:
+        result_1d.append(e[0])
+        result_1d.append(e[1])
+
+    im = Image.new('L', (height, width))
+    im.putdata(result_1d)
+    return im
 
 def decrypt_image(input_filename, output_filename, key):
 
     encrypt_image(input_filename, output_filename, tools.modMatInv(key, 256))
+
+def decrypt_image_return(input_filename, key):
+
+    return encrypt_image_return(input_filename, tools.modMatInv(key, 256))
 
 
 def get_key_from_text(cleartext, cryptedtext):
@@ -165,7 +218,7 @@ def attack_hill_bruteforce(chiffree, clair):
                     key = [[a, b], [c, d]]
                     try:
                         decrypted = decrypt_text(chiffree, key)
-                        if decrypted == clair:
+                        if decrypted == clair.upper():
                             return key
                     except ValueError:
                         pass
